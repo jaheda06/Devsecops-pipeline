@@ -1,0 +1,78 @@
+version: 0.2
+
+phases:
+  install:
+    runtime-versions:
+      docker: latest
+    commands:
+      - echo "Installing SonarQube Scanner"
+      - wget -O sonar-scanner.zip https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-4.6.2.2472-linux.zip
+      - unzip sonar-scanner.zip
+      
+      - echo "Installing Hadolint"
+      - curl -L https://github.com/hadolint/hadolint/releases/latest/download/hadolint-Linux-x86_64 -o /usr/local/bin/hadolint
+      - chmod +x /usr/local/bin/hadolint
+      
+      - echo "Installing Anchore Engine"
+      - curl -s https://ci-tools.anchore.io/inline_scan-latest > inline_scan.sh
+      - chmod +x inline_scan.sh
+      
+      - echo "Installing KubeLinter"
+      - curl -sSL https://github.com/stackrox/kube-linter/releases/latest/download/kube-linter-linux -o kube-linter
+      - chmod +x kube-linter
+      
+      - echo "Installing OWASP ZAP"
+      - wget https://github.com/zaproxy/zaproxy/releases/latest/download/ZAP_2_10_0_Linux.tar.gz
+      - tar -xzf ZAP_2_10_0_Linux.tar.gz
+      
+      - echo "Installing kubectl"
+      - curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+      - chmod +x kubectl
+      - mv kubectl /usr/local/bin/
+
+  pre_build:
+    commands:
+      - echo "Logging in to Amazon ECR"
+      - aws ecr get-login-password --region ap-south-1 | docker login --username AWS --password-stdin 831926628412.dkr.ecr.ap-south-1.amazonaws.com
+      - echo "Building Docker image"
+      - docker build -t devsecops-cluster .
+      - docker tag devsecops-cluster:latest 831926628412.dkr.ecr.ap-south-1.amazonaws.com/devsecops-cluster:latest
+      - docker push 831926628412.dkr.ecr.ap-south-1.amazonaws.com/devsecops-cluster:latest
+
+  build:
+    commands:
+      - echo "Running SonarQube Scan"
+      - ./sonar-scanner/bin/sonar-scanner -Dsonar.projectKey=my_project -Dsonar.host.url=http://<SONARQUBE_SERVER_IP>:9000 -Dsonar.login=<SONARQUBE_TOKEN>
+      
+      - echo "Running Hadolint"
+      - hadolint Dockerfile
+      
+      - echo "Scanning Docker Image with Anchore Engine"
+      - ./inline_scan.sh my-app:latest
+      
+      - echo "Running KubeLinter"
+      - ./kube-linter lint kubernetes-manifests/
+      
+      - echo "Running OWASP ZAP Security Scan"
+      - ./ZAP_2_10_0/zap.sh -cmd -quickurl https://my-app-url.com -quickout zap-report.html
+      
+      - echo "Configuring kubectl for EKS"
+      - aws eks update-kubeconfig --region ap-south-1 --name devsecops
+      
+      - echo "Applying deployment.yml"
+      - kubectl apply -f deployment.yml
+      
+      - echo "Checking deployment rollout status"
+      - kubectl rollout status deployment devsecops -n my-namespace
+
+      
+      - echo "Verifying pod status"
+      - kubectl get pods -n my-namespace
+      
+      - echo "Describing deployment"
+      - kubectl describe deployment devsecops -n my-namespace
+
+  post_build:
+    commands:
+      - echo "Uploading ZAP Report to S3"
+      - aws s3 cp zap-report.html s3://my-security-reports/
