@@ -84,4 +84,4 @@ phases:
   post_build:
     commands:
       - echo "Uploading ZAP Report to S3"
-      - aws s3 cp zap-report.html s3://my-security-reports/
+      - aws s3 cp zap-report.html s3://bucket-jaheda/
