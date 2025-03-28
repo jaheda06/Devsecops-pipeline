@@ -2,6 +2,8 @@ version: 0.2
 
 phases:
   install:
+    runtime-versions:
+      docker: latest
     commands:
       - echo "Installing SonarQube Scanner"
       - wget -O sonar-scanner.zip https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-4.6.2.2472-linux.zip
@@ -19,9 +21,20 @@ phases:
       - curl -sSL https://github.com/stackrox/kube-linter/releases/latest/download/kube-linter-linux -o kube-linter
       - chmod +x kube-linter
       
-      - echo "Installing OWASP ZAP"
-      - wget https://github.com/zaproxy/zaproxy/releases/latest/download/ZAP_2_10_0_Linux.tar.gz
-      - tar -xzf ZAP_2_10_0_Linux.tar.gz
+      - echo "Installing jq (JSON parser)"
+      - yum install -y jq  # Ensure jq is installed
+
+      - echo "Fetching latest OWASP ZAP version"
+      - export ZAP_URL=$(curl -s https://api.github.com/repos/zaproxy/zaproxy/releases/latest | jq -r '.assets[] | select(.name | endswith("Linux.tar.gz")) | .browser_download_url')
+
+      - echo "Downloading OWASP ZAP from $ZAP_URL"
+      - wget -O ZAP_Linux.tar.gz "$ZAP_URL"
+
+      - echo "Extracting OWASP ZAP"
+      - tar -xzf ZAP_Linux.tar.gz
+ 
+      
+      
       
       - echo "Installing kubectl"
       - curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
