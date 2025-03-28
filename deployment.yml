@@ -1,32 +1,33 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: devsecops-app
+  name: devsecops
+  labels:
+    app: demo
 spec:
   replicas: 2
   selector:
     matchLabels:
-      app: devsecops
+      app: demo
   template:
     metadata:
       labels:
-        app: devsecops
+        app: demo
     spec:
       containers:
-        - name: devsecops-app
-          image: your-docker-image:latest  # Replace with your actual image
+        - name: devsecops-container
+          image: nginx
           ports:
-            - containerPort: 8080
+            - containerPort: 80
 ---
 apiVersion: v1
 kind: Service
 metadata:
   name: devsecops-service
 spec:
+  type: LoadBalancer
   selector:
-    app: devsecops
+    app: demo
   ports:
-    - protocol: TCP
-      port: 80
-      targetPort: 8080
-  type: ClusterIP
+    - port: 80
+      targetPort: 80
