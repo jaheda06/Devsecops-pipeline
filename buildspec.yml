@@ -3,32 +3,19 @@ version: 0.2
 phases:
   install:
     runtime-versions:
-      java: corretto11  # Ensures Java is installed for SonarQube Scanner
+      java: corretto11  # Ensure Java is installed, required for SonarQube Scanner
     commands:
-      - echo "Updating package repositories..."
-      - sudo yum clean all && sudo yum update -y || sudo dnf clean all && sudo dnf update -y
-
-      - echo "Checking internet connectivity..."
-      - curl -Is https://amazon.com || { echo "ERROR: No internet connection! Exiting..."; exit 1; }
-
-      - echo "Checking available package managers..."
-      - if command -v yum >/dev/null 2>&1; then echo "Using yum"; else echo "yum NOT found"; fi
-      - if command -v dnf >/dev/null 2>&1; then echo "Using dnf"; else echo "dnf NOT found"; fi
-
+      - echo "Updating package repositories"
+      - sudo yum update -y || sudo dnf update -y  # Ensure latest packages
+      
       - echo "Installing required dependencies..."
-      - sudo yum install -y jq unzip curl || sudo dnf install -y jq unzip curl || { echo "ERROR: Package installation failed!"; exit 1; }
-
-      - echo "Verifying installations..."
-      - jq --version || { echo "ERROR: jq installation failed"; exit 1; }
-      - unzip -v || { echo "ERROR: unzip installation failed"; exit 1; }
-      - curl --version || { echo "ERROR: curl installation failed"; exit 1; }
-
+      - sudo yum install -y jq unzip curl || sudo dnf install -y jq unzip curl  # Handle Amazon Linux 2023
+      
       - echo "Installing SonarQube Scanner"
       - wget -O sonar-scanner.zip https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-5.0.1.3006-linux.zip
       - unzip sonar-scanner.zip
       - mv sonar-scanner-5.0.1.3006-linux sonar-scanner
       - chmod +x sonar-scanner/bin/sonar-scanner
-      - export PATH=$PWD/sonar-scanner/bin:$PATH
       - echo 'export PATH=$PWD/sonar-scanner/bin:$PATH' >> ~/.bashrc
       - source ~/.bashrc
       - sonar-scanner --version  # Verify installation
@@ -45,6 +32,9 @@ phases:
       - curl -sSL https://github.com/stackrox/kube-linter/releases/latest/download/kube-linter-linux -o kube-linter
       - chmod +x kube-linter
 
+      - echo "Installing jq (JSON parser)"
+      - sudo yum install -y jq || sudo dnf install -y jq  # Handle package installation issue
+
       - echo "Fetching latest OWASP ZAP version"
       - export ZAP_URL=$(curl -s https://api.github.com/repos/zaproxy/zaproxy/releases/latest | jq -r '.assets[] | select(.name | endswith("Linux.tar.gz")) | .browser_download_url')
 
@@ -57,10 +47,7 @@ phases:
 
       - echo "Extracting OWASP ZAP"
       - tar -xzf ZAP_Linux.tar.gz
-
-      - echo "Checking extracted folder"
-      - ls -l
-
+      
       - export ZAP_FOLDER=$(ls | grep ZAP_ | head -n 1)
       
       - if [[ -z "$ZAP_FOLDER" ]]; then echo "No extracted ZAP folder found"; exit 1; fi
@@ -71,7 +58,7 @@ phases:
       - echo "Installing kubectl"
       - curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
       - chmod +x kubectl
-      - mv kubectl /usr/local/bin/
+      - sudo mv kubectl /usr/local/bin/
 
   pre_build:
     commands:
