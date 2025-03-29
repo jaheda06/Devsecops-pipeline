@@ -3,7 +3,7 @@ version: 0.2
 phases:
   install:
     runtime-versions:
-      java: corretto11  # Ensure Java is installed, required for SonarQube Scanner
+      java: corretto11  # Required for SonarQube Scanner
     commands:
       - echo "Installing SonarQube Scanner"
       - wget -O sonar-scanner.zip https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-5.0.1.3006-linux.zip
@@ -13,7 +13,7 @@ phases:
       - export PATH=$PWD/sonar-scanner/bin:$PATH
       - echo 'export PATH=$PWD/sonar-scanner/bin:$PATH' >> ~/.bashrc
       - source ~/.bashrc
-      - sonar-scanner --version  # Verify installation
+      - sonar-scanner --version  
 
       - echo "Installing Hadolint"
       - curl -L https://github.com/hadolint/hadolint/releases/latest/download/hadolint-Linux-x86_64 -o /usr/local/bin/hadolint
@@ -36,7 +36,8 @@ phases:
       - wget -O ZAP_Linux.tar.gz "$ZAP_URL"
       - echo "Extracting OWASP ZAP"
       - tar -xzf ZAP_Linux.tar.gz
-      - mv ZAP_* zap
+      - export ZAP_DIR=$(tar -tzf ZAP_Linux.tar.gz | head -1 | cut -f1 -d"/")
+      - mv "$ZAP_DIR" zap
 
       - echo "Installing kubectl"
       - curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
