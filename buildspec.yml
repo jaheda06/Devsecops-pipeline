@@ -5,6 +5,9 @@ phases:
     runtime-versions:
       java: corretto11  # Ensure Java is installed, required for SonarQube Scanner
     commands:
+      - echo "Installing required dependencies..."
+      - yum install -y jq unzip curl
+
       - echo "Installing SonarQube Scanner"
       - wget -O sonar-scanner.zip https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-5.0.1.3006-linux.zip
       - unzip sonar-scanner.zip
@@ -32,11 +35,26 @@ phases:
 
       - echo "Fetching latest OWASP ZAP version"
       - export ZAP_URL=$(curl -s https://api.github.com/repos/zaproxy/zaproxy/releases/latest | jq -r '.assets[] | select(.name | endswith("Linux.tar.gz")) | .browser_download_url')
+
+      - if [[ -z "$ZAP_URL" ]]; then echo "Failed to fetch ZAP URL"; exit 1; fi
+
       - echo "Downloading OWASP ZAP from $ZAP_URL"
       - wget -O ZAP_Linux.tar.gz "$ZAP_URL"
+      
+      - if [[ ! -f "ZAP_Linux.tar.gz" ]]; then echo "ZAP Download failed"; exit 1; fi
+
       - echo "Extracting OWASP ZAP"
       - tar -xzf ZAP_Linux.tar.gz
-      - mv ZAP_* zap
+      
+      - echo "Checking extracted folder"
+      - ls -l
+
+      - export ZAP_FOLDER=$(ls | grep ZAP_ | head -n 1)
+      
+      - if [[ -z "$ZAP_FOLDER" ]]; then echo "No extracted ZAP folder found"; exit 1; fi
+
+      - echo "Renaming $ZAP_FOLDER to zap"
+      - mv "$ZAP_FOLDER" zap
 
       - echo "Installing kubectl"
       - curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
