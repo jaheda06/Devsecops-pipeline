@@ -2,38 +2,42 @@ version: 0.2
 
 phases:
   install:
+    runtime-versions:
+      java: corretto11  # Ensure Java is installed, required for SonarQube Scanner
     commands:
       - echo "Installing SonarQube Scanner"
-      - wget -O sonar-scanner.zip https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-4.6.2.2472-linux.zip
+      - wget -O sonar-scanner.zip https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-5.0.1.3006-linux.zip
       - unzip sonar-scanner.zip
-      
+      - mv sonar-scanner-5.0.1.3006-linux sonar-scanner
+      - chmod +x sonar-scanner/bin/sonar-scanner
+      - export PATH=$PWD/sonar-scanner/bin:$PATH
+      - echo 'export PATH=$PWD/sonar-scanner/bin:$PATH' >> ~/.bashrc
+      - source ~/.bashrc
+      - sonar-scanner --version  # Verify installation
+
       - echo "Installing Hadolint"
       - curl -L https://github.com/hadolint/hadolint/releases/latest/download/hadolint-Linux-x86_64 -o /usr/local/bin/hadolint
       - chmod +x /usr/local/bin/hadolint
-      
+
       - echo "Installing Anchore Engine"
       - curl -s https://ci-tools.anchore.io/inline_scan-latest > inline_scan.sh
       - chmod +x inline_scan.sh
-      
+
       - echo "Installing KubeLinter"
       - curl -sSL https://github.com/stackrox/kube-linter/releases/latest/download/kube-linter-linux -o kube-linter
       - chmod +x kube-linter
-      
+
       - echo "Installing jq (JSON parser)"
-      - yum install -y jq  # Ensure jq is installed
+      - yum install -y jq  
 
       - echo "Fetching latest OWASP ZAP version"
       - export ZAP_URL=$(curl -s https://api.github.com/repos/zaproxy/zaproxy/releases/latest | jq -r '.assets[] | select(.name | endswith("Linux.tar.gz")) | .browser_download_url')
-
       - echo "Downloading OWASP ZAP from $ZAP_URL"
       - wget -O ZAP_Linux.tar.gz "$ZAP_URL"
-
       - echo "Extracting OWASP ZAP"
       - tar -xzf ZAP_Linux.tar.gz
- 
-      
-      
-      
+      - mv ZAP_* zap
+
       - echo "Installing kubectl"
       - curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
       - chmod +x kubectl
@@ -51,37 +55,38 @@ phases:
   build:
     commands:
       - echo "Running SonarQube Scan"
-      - ./sonar-scanner/bin/sonar-scanner -Dsonar.projectKey=my_project -Dsonar.host.url=http://13.127.185.137:9000   -Dsonar.login=squ_0cdd8e82deaf363e71c87e8a9b80cfafe9fec2e8
-      
+      - sonar-scanner -Dsonar.projectKey=my_project -Dsonar.host.url=http://13.127.185.137:9000 -Dsonar.login=squ_0cdd8e82deaf363e71c87e8a9b80cfafe9fec2e8 || exit 1
+
       - echo "Running Hadolint"
       - hadolint Dockerfile
-      
+
       - echo "Scanning Docker Image with Anchore Engine"
       - ./inline_scan.sh my-app:latest
-      
+
       - echo "Running KubeLinter"
       - ./kube-linter lint kubernetes-manifests/
-      
+
       - echo "Running OWASP ZAP Security Scan"
-      - ./ZAP_2_10_0/zap.sh -cmd -quickurl https://my-app-url.com -quickout zap-report.html
-      
+      - ./zap/zap.sh -cmd -quickurl https://my-app-url.com -quickout zap-report.html || exit 1
+
       - echo "Configuring kubectl for EKS"
       - aws eks update-kubeconfig --region ap-south-1 --name devsecops
-      
+
       - echo "Applying deployment.yml"
       - kubectl apply -f deployment.yml
-      
+
       - echo "Checking deployment rollout status"
       - kubectl rollout status deployment devsecops -n my-namespace
 
-      
       - echo "Verifying pod status"
       - kubectl get pods -n my-namespace
-      
+
       - echo "Describing deployment"
       - kubectl describe deployment devsecops -n my-namespace
 
   post_build:
     commands:
+      - echo "Checking if ZAP report exists"
+      - ls -l zap-report.html || exit 1
       - echo "Uploading ZAP Report to S3"
       - aws s3 cp zap-report.html s3://bucket-jaheda/
