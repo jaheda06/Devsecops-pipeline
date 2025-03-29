@@ -3,13 +3,13 @@ version: 0.2
 phases:
   install:
     runtime-versions:
-      java: corretto11  # Ensure Java is installed, required for SonarQube Scanner
+      java: corretto11  
     commands:
       - echo "Updating package repositories"
-      - sudo yum update -y || sudo dnf update -y  # Ensure latest packages
+      - sudo yum update -y || 
       
       - echo "Installing required dependencies..."
-      - sudo yum install -y jq unzip curl || sudo dnf install -y jq unzip curl  # Handle Amazon Linux 2023
+      - sudo yum install -y jq unzip curl ||
       
       - echo "Installing SonarQube Scanner"
       - wget -O sonar-scanner.zip https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-5.0.1.3006-linux.zip
