@@ -5,15 +5,17 @@ phases:
     runtime-versions:
       java: corretto11  # Ensure Java is installed, required for SonarQube Scanner
     commands:
+      - echo "Updating package repositories"
+      - sudo yum update -y || sudo dnf update -y  # Ensure latest packages
+      
       - echo "Installing required dependencies..."
-      - yum install -y jq unzip curl
-
+      - sudo yum install -y jq unzip curl || sudo dnf install -y jq unzip curl  # Handle Amazon Linux 2023
+      
       - echo "Installing SonarQube Scanner"
       - wget -O sonar-scanner.zip https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-5.0.1.3006-linux.zip
       - unzip sonar-scanner.zip
       - mv sonar-scanner-5.0.1.3006-linux sonar-scanner
       - chmod +x sonar-scanner/bin/sonar-scanner
-      - export PATH=$PWD/sonar-scanner/bin:$PATH
       - echo 'export PATH=$PWD/sonar-scanner/bin:$PATH' >> ~/.bashrc
       - source ~/.bashrc
       - sonar-scanner --version  # Verify installation
@@ -31,7 +33,7 @@ phases:
       - chmod +x kube-linter
 
       - echo "Installing jq (JSON parser)"
-      - yum install -y jq  
+      - sudo yum install -y jq || sudo dnf install -y jq  # Handle package installation issue
 
       - echo "Fetching latest OWASP ZAP version"
       - export ZAP_URL=$(curl -s https://api.github.com/repos/zaproxy/zaproxy/releases/latest | jq -r '.assets[] | select(.name | endswith("Linux.tar.gz")) | .browser_download_url')
@@ -46,9 +48,6 @@ phases:
       - echo "Extracting OWASP ZAP"
       - tar -xzf ZAP_Linux.tar.gz
       
-      - echo "Checking extracted folder"
-      - ls -l
-
       - export ZAP_FOLDER=$(ls | grep ZAP_ | head -n 1)
       
       - if [[ -z "$ZAP_FOLDER" ]]; then echo "No extracted ZAP folder found"; exit 1; fi
@@ -59,7 +58,7 @@ phases:
       - echo "Installing kubectl"
       - curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
       - chmod +x kubectl
-      - mv kubectl /usr/local/bin/
+      - sudo mv kubectl /usr/local/bin/
 
   pre_build:
     commands:
