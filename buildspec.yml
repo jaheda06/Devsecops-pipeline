@@ -10,7 +10,8 @@ phases:
       - sudo yum update -y || 
       
       - echo "Installing required dependencies..."
-      - sudo yum install -y jq unzip curl ||
+      - sudo yum install -y jq unzip curl || echo "Installation failed, continuing..."
+
       
       - echo "Installing SonarQube Scanner"
       - wget -O sonar-scanner.zip https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-5.0.1.3006-linux.zip
